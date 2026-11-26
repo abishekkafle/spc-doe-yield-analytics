@@ -349,6 +349,11 @@ body {
   gap: 16px;
 }
 
+.grid-2 > * {
+  min-width: 0;
+  overflow: hidden;
+}
+
 @media (max-width: 900px) {
   .grid-2 { grid-template-columns: 1fr; }
 }

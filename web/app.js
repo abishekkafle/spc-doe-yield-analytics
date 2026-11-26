@@ -546,6 +546,12 @@ function init() {
 
   loadPresetSpecs("cold_spray");
   renderAll();
+
+  const initialTab = new URLSearchParams(window.location.search).get("tab");
+  if (initialTab) {
+    const btn = document.querySelector(`.tab-btn[data-tab="${initialTab}"]`);
+    if (btn) btn.click();
+  }
 }
 
 document.addEventListener("DOMContentLoaded", init);

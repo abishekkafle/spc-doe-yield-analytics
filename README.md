@@ -4,6 +4,19 @@
 
 An interactive Python & Streamlit engineering analytics platform for **Statistical Process Control (SPC)**, **Process Capability (Cp/Cpk/Pp/Ppk)**, **Response Surface Methodology (RSM) DOE**, **Multivariate Sensor Anomaly Detection**, and **Automated 8D Root-Cause Reporting**.
 
+---
+
+## Dashboard Previews
+
+### 1. SPC Control Charts & Executive Yield KPIs
+![SPC Control Charts Dashboard](assets/spc_dashboard.png)
+
+### 2. Response Surface DOE (2D Process Window Contour, 3D Surface & Optimizer)
+![Response Surface DOE Explorer](assets/doe_response_surface.png)
+
+### 3. Multivariate Hotelling's T² Excursion Detection
+![Hotelling T2 Multivariate Control Chart](assets/hotelling_t2_anomalies.png)
+
 Built to reflect real process, manufacturing, and quality engineering workflows across **Coatings / Cold Spray Deposition**, **Semiconductor Thin-Film Plasma Etch**, and **Laser Powder Bed Fusion (LPBF) Metal Additive Manufacturing**, with full support for uploading custom production CSV datasets.
 
 ---
