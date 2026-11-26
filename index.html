@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPC, DOE &amp; Yield Analytics Platform</title>
+  <link rel="stylesheet" href="web/styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>SPC, DOE &amp; Yield Analytics Platform</h1>
+      <p id="activeProcessLabel">Loading manufacturing process...</p>
+    </div>
+    <div class="topbar-badges">
+      <span class="badge">I-MR &amp; X-bar/R</span>
+      <span class="badge">Cp / Cpk / Ppk</span>
+      <span class="badge">RSM DOE + PRESS</span>
+      <span class="badge">Hotelling's T²</span>
+      <span class="badge">Automated 8D CAPA</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar Controls -->
+    <aside class="sidebar">
+      <h2>Process Setup</h2>
+
+      <div class="control-group">
+        <label for="processSelect">Manufacturing Dataset</label>
+        <select id="processSelect">
+          <option value="cold_spray">Cold Spray Coating (SS316L / 4140)</option>
+          <option value="semiconductor_etch">Semiconductor Plasma Etch (SiO₂)</option>
+          <option value="lpbf_metal_am">LPBF Metal AM (Inconel 718)</option>
+        </select>
+      </div>
+
+      <label class="toggle-card" for="injectToggle">
+        <div>
+          <span>Inject Drift &amp; Excursions</span>
+          <small>Toggle off to see a healthy baseline</small>
+        </div>
+        <input type="checkbox" id="injectToggle" checked />
+      </label>
+
+      <div class="control-group">
+        <label for="nRunsSlider">Production Runs: <strong id="nRunsVal">180</strong></label>
+        <input type="range" id="nRunsSlider" min="60" max="300" step="20" value="180" />
+      </div>
+
+      <div class="control-group">
+        <label>Specification Limits</label>
+        <div class="inline-2">
+          <div>
+            <label for="lslInput" style="font-weight:400;font-size:0.75rem;">LSL</label>
+            <input type="number" id="lslInput" step="any" />
+          </div>
+          <div>
+            <label for="uslInput" style="font-weight:400;font-size:0.75rem;">USL</label>
+            <input type="number" id="uslInput" step="any" />
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <label for="targetInput" style="font-weight:400;font-size:0.75rem;">Target</label>
+          <input type="number" id="targetInput" step="any" />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label for="subgroupSlider">X-bar/R Subgroup Size (n): <strong id="subgroupVal">5</strong></label>
+        <input type="range" id="subgroupSlider" min="2" max="10" step="1" value="5" />
+      </div>
+
+      <div class="control-group">
+        <label for="alphaSelect">Hotelling T² Significance (α)</label>
+        <select id="alphaSelect">
+          <option value="0.05">0.05 (Sensitive)</option>
+          <option value="0.01" selected>0.01 (Standard)</option>
+          <option value="0.005">0.005 (Strict)</option>
+          <option value="0.001">0.001 (Very Strict)</option>
+        </select>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;" />
+
+      <div class="control-group">
+        <label for="csvUpload">Or Upload Custom CSV</label>
+        <input type="file" id="csvUpload" accept=".csv" />
+        <small style="color:var(--muted);font-size:0.75rem;">Last numeric column is treated as CTQ; earlier numeric columns as sensors.</small>
+      </div>
+
+      <button id="downloadCsvBtn" class="btn btn-outline btn-block">Download Active Dataset (.csv)</button>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main">
+      <div class="guide-banner">
+        <p><strong>Quick Walkthrough:</strong> Toggle <em>Inject Drift &amp; Excursions</em> on the left to compare an in-control vs. drifting production line in real time.</p>
+        <div class="guide-steps">
+          <span>1. Spot OOC Signals</span>
+          <span>2. Check Cp/Cpk</span>
+          <span>3. Optimize DOE</span>
+          <span>4. Trace Sensor Driver</span>
+          <span>5. Export 8D</span>
+        </div>
+      </div>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <nav class="tabs-bar">
+        <button class="tab-btn active" data-tab="tabSpc">1. SPC Control Charts</button>
+        <button class="tab-btn" data-tab="tabCap">2. Capability (Cp/Cpk)</button>
+        <button class="tab-btn" data-tab="tabDoe">3. Response Surface DOE</button>
+        <button class="tab-btn" data-tab="tabAnom">4. Multivariate T²</button>
+        <button class="tab-btn" data-tab="tab8d">5. Automated 8D Report</button>
+      </nav>
+
+      <!-- Tab 1: SPC -->
+      <section class="tab-panel active" id="tabSpc">
+        <div id="spcInsight"></div>
+        <div class="card">
+          <h3>Individuals (I) Control Chart</h3>
+          <p class="subtitle">Monitors run-to-run stability with ±3σ control limits (dashed red) and engineering spec limits (dotted purple). Diamonds mark Nelson Rule violations.</p>
+          <div id="imrChart" class="chart-box"></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Nelson Rules Breakdown</h3>
+            <p class="subtitle">Automatic detection of special-cause excursions, sustained mean shifts, and wear trends.</p>
+            <div class="table-wrap" id="nelsonTable"></div>
+          </div>
+          <div class="card">
+            <h3>X-bar Subgroup Control Chart</h3>
+            <p class="subtitle">Subgroup means monitored against AIAG A₂ control limits.</p>
+            <div id="xbarChart" style="width:100%;min-height:290px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: Capability -->
+      <section class="tab-panel" id="tabCap">
+        <div id="capInsight"></div>
+        <div class="card">
+          <h3>Process Capability Distribution (Within vs. Overall)</h3>
+          <p class="subtitle">Compares short-term potential (solid blue, Cpk) against long-term actual performance (dashed orange, Ppk) relative to LSL, Target, and USL.</p>
+          <div id="capChart" class="chart-box"></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Capability &amp; Yield Summary</h3>
+            <div class="table-wrap" id="capTable"></div>
+          </div>
+          <div class="card">
+            <h3>Shift-to-Shift Stratification</h3>
+            <p class="subtitle">Checks whether operator or shift differences contribute to variation.</p>
+            <div id="shiftChart" style="width:100%;min-height:290px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 3: Response Surface DOE -->
+      <section class="tab-panel" id="tabDoe">
+        <div id="doeMetrics"></div>
+        <div class="card">
+          <h3>Interactive Process Window Explorer &amp; Optimizer</h3>
+          <div class="doe-controls">
+            <div class="control-group" style="margin:0;">
+              <label for="doeGoal">Optimization Goal</label>
+              <select id="doeGoal">
+                <option value="target" selected>Hit Target</option>
+                <option value="maximize">Maximize CTQ</option>
+                <option value="minimize">Minimize CTQ</option>
+              </select>
+            </div>
+            <div class="control-group" style="margin:0;">
+              <label for="doeFx">X-Axis Factor</label>
+              <select id="doeFx"></select>
+            </div>
+            <div class="control-group" style="margin:0;">
+              <label for="doeFy">Y-Axis Factor</label>
+              <select id="doeFy"></select>
+            </div>
+            <div class="control-group" id="doeHoldWrap" style="margin:0;">
+              <label id="doeHoldLabel" for="doeHoldSlider">Hold Factor</label>
+              <input type="range" id="doeHoldSlider" />
+            </div>
+          </div>
+          <div class="grid-2">
+            <div>
+              <div id="doeContour" class="chart-box"></div>
+            </div>
+            <div>
+              <div id="doeSurface" class="chart-box"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Coded 2nd-Order Quadratic Regression Table</h3>
+          <p class="subtitle">Factors are coded to [-1, +1] so coefficient magnitudes are directly comparable.</p>
+          <div class="table-wrap" id="doeTable"></div>
+        </div>
+      </section>
+
+      <!-- Tab 4: Multivariate Anomalies -->
+      <section class="tab-panel" id="tabAnom">
+        <div class="card">
+          <h3>Hotelling's T² Multivariate Control Chart</h3>
+          <p class="subtitle">Monitors all process sensors simultaneously against a Phase I baseline covariance model to catch equipment drift before parts go out of spec.</p>
+          <div id="t2Chart" class="chart-box"></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Primary Sensor Attribution</h3>
+            <p class="subtitle">Ranks which equipment sensor most frequently drove multivariate excursions.</p>
+            <div id="driverChart" style="width:100%;min-height:290px;"></div>
+          </div>
+          <div class="card">
+            <h3>Flagged Excursion Log</h3>
+            <p class="subtitle">Run-level root-cause attribution via baseline-normalized Z-scores.</p>
+            <div class="table-wrap" id="excursionTable"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 5: Automated 8D Report -->
+      <section class="tab-panel" id="tab8d">
+        <div class="card">
+          <div class="report-actions">
+            <button id="downloadMdBtn" class="btn btn-primary">Download 8D Report (.md)</button>
+            <button id="copyMdBtn" class="btn btn-outline">Copy Markdown</button>
+            <button id="printBtn" class="btn btn-outline">Print / Save PDF</button>
+          </div>
+          <div class="report-box" id="reportPreview"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    SPC, DOE &amp; Yield Analytics Platform • Built with HTML, CSS, Plotly.js &amp; Python (Streamlit + Pytest) • Client-side execution for instant GitHub Pages deployment
+  </footer>
+
+  <script src="web/analytics.js"></script>
+  <script src="web/app.js"></script>
+</body>
+</html>
